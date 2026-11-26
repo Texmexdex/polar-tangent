@@ -1,0 +1,2688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sacred Geometric Optical Loops — Shader Suite</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --panel: rgba(14, 15, 20, 0.84);
+      --panel-solid: rgba(16, 18, 24, 0.95);
+      --border: rgba(255, 255, 255, 0.13);
+      --border-hi: rgba(255, 255, 255, 0.28);
+      --text: rgba(255, 255, 255, 0.93);
+      --muted: rgba(255, 255, 255, 0.54);
+      --accent: #e2824a;
+      --accent-2: #57adb7;
+      --accent-3: #dad66c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    #gl-canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #gl-canvas.interactive-3d {
+      cursor: grab;
+    }
+
+    #gl-canvas.interactive-3d.dragging {
+      cursor: grabbing;
+    }
+
+    /* Top Shader Switcher Dropdown Bar */
+    .shader-switcher {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 25;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 12px 38px rgba(0, 0, 0, 0.55);
+      transition: opacity 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .shader-switcher:hover {
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+
+    .nav-arrow {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .nav-arrow:hover {
+      background: rgba(255, 255, 255, 0.09);
+      color: var(--text);
+    }
+
+    .shader-trigger {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 5px 12px 5px 10px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-size: 12.5px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .shader-trigger:hover,
+    .shader-switcher.open .shader-trigger {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.16);
+    }
+
+    .shader-glyph {
+      width: 16px;
+      height: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-2);
+      flex-shrink: 0;
+    }
+
+    .shader-glyph svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.5;
+    }
+
+    .badge {
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 2px 6px;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+
+    .badge.b-2d {
+      background: rgba(87, 173, 183, 0.16);
+      color: #8ce0ea;
+      border: 1px solid rgba(87, 173, 183, 0.35);
+    }
+
+    .badge.b-3d {
+      background: rgba(226, 130, 74, 0.22);
+      color: #ffd0b3;
+      border: 1px solid rgba(226, 130, 74, 0.5);
+    }
+
+    .chevron {
+      font-size: 10px;
+      color: var(--muted);
+      margin-left: 2px;
+      transition: transform 0.2s ease;
+    }
+
+    .shader-switcher.open .chevron {
+      transform: rotate(180deg);
+    }
+
+    /* Dropdown Menu */
+    .shader-menu {
+      position: fixed;
+      top: 62px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-6px);
+      z-index: 26;
+      width: min(390px, calc(100vw - 28px));
+      max-height: calc(100vh - 90px);
+      overflow-y: auto;
+      padding: 7px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--panel-solid);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.78);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .shader-menu.open {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .shader-item {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      width: 100%;
+      text-align: left;
+      padding: 9px 11px;
+      border-radius: 11px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.14s ease, border-color 0.14s ease;
+    }
+
+    .shader-item:hover {
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .shader-item.active {
+      background: rgba(87, 173, 183, 0.12);
+      border-color: rgba(87, 173, 183, 0.32);
+    }
+
+    .shader-item.active.is-3d {
+      background: rgba(226, 130, 74, 0.14);
+      border-color: rgba(226, 130, 74, 0.38);
+    }
+
+    .shader-item .item-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-2);
+      flex-shrink: 0;
+    }
+
+    .shader-item.is-3d .item-icon {
+      color: var(--accent);
+    }
+
+    .shader-item .item-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.45;
+    }
+
+    .shader-item .item-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .shader-item .item-title-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+
+    .shader-item .item-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .shader-item .item-key {
+      font-size: 10.5px;
+      font-variant-numeric: tabular-nums;
+      color: rgba(255, 255, 255, 0.34);
+      padding: 2px 6px;
+      border-radius: 5px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Subtle 3D Orbit Hint Pill */
+    .orbit-pill {
+      position: fixed;
+      left: 18px;
+      bottom: 18px;
+      z-index: 18;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 13px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      color: var(--muted);
+      font-size: 11.5px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .orbit-pill.visible {
+      opacity: 0.82;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .orbit-pill button {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 10.5px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .orbit-pill button:hover {
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    /* Corner Toggle Pill */
+    .hud-toggle {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+      opacity: 0.78;
+      transition: opacity 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .hud-toggle:hover {
+      opacity: 1;
+      border-color: var(--border-hi);
+    }
+
+    .hud-toggle:active {
+      transform: scale(0.97);
+    }
+
+    .hud-toggle .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-2);
+      box-shadow: 0 0 8px var(--accent-2);
+    }
+
+    .hud-toggle.recording .dot {
+      background: #ff4757;
+      box-shadow: 0 0 10px #ff4757;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    /* Control Drawer */
+    .panel {
+      position: fixed;
+      right: 18px;
+      bottom: 62px;
+      z-index: 20;
+      width: 320px;
+      max-height: calc(100vh - 130px);
+      overflow-y: auto;
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .panel.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .panel-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+      line-height: 1.35;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-group.hidden-group {
+      display: none;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .control-row label {
+      color: var(--muted);
+    }
+
+    .control-row .val {
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.16);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+      transition: transform 0.12s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    select {
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select option {
+      background: #14151a;
+      color: #ffffff;
+    }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn-row.four {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    button.btn {
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    button.btn:hover {
+      background: rgba(255, 255, 255, 0.13);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    button.btn.primary {
+      background: rgba(226, 130, 74, 0.22);
+      border-color: rgba(226, 130, 74, 0.55);
+      color: #ffd5bd;
+    }
+
+    button.btn.primary:hover {
+      background: rgba(226, 130, 74, 0.34);
+    }
+
+    button.btn.active-toggle {
+      background: rgba(87, 173, 183, 0.22);
+      border-color: rgba(87, 173, 183, 0.55);
+      color: #b7f0f7;
+    }
+
+    button.btn.mini {
+      padding: 5px 6px;
+      font-size: 10.5px;
+      color: var(--muted);
+    }
+
+    button.btn.mini:hover {
+      color: var(--text);
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+    }
+
+    .shortcuts {
+      font-size: 10.5px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      padding-top: 2px;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 66px;
+      transform: translateX(-50%) translateY(16px);
+      padding: 8px 16px;
+      border-radius: 999px;
+      background: rgba(20, 22, 28, 0.92);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 30;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    body.pure-mode .shader-switcher,
+    body.pure-mode .shader-menu,
+    body.pure-mode .orbit-pill,
+    body.pure-mode .hud-toggle,
+    body.pure-mode .panel {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gl-canvas"></canvas>
+
+  <!-- Top Dropdown Switcher Bar -->
+  <div class="shader-switcher" id="shader-switcher">
+    <button class="nav-arrow" id="btn-prev" title="Previous Pattern ([)">&#8249;</button>
+    <button class="shader-trigger" id="shader-trigger" aria-haspopup="listbox" aria-expanded="false">
+      <span class="shader-glyph" id="active-glyph"></span>
+      <span id="active-name">Polar Tangent Dyad</span>
+      <span class="badge b-2d" id="active-badge">2D</span>
+      <span class="chevron">&#9662;</span>
+    </button>
+    <button class="nav-arrow" id="btn-next" title="Next Pattern (])">&#8250;</button>
+  </div>
+
+  <!-- Rich Sacred Geometry Dropdown List -->
+  <div class="shader-menu" id="shader-menu" role="listbox"></div>
+
+  <!-- 3D Orbit Helper Pill -->
+  <div class="orbit-pill" id="orbit-pill">
+    <span>Drag to orbit 3D &middot; Scroll to zoom</span>
+    <button id="btn-pill-cam-reset" title="Reset 3D camera">Reset View</button>
+  </div>
+
+  <!-- Parameter Drawer -->
+  <div class="panel hidden" id="panel">
+    <div class="panel-header">
+      <div>
+        <div class="panel-title" id="panel-title">Polar Tangent Dyad</div>
+        <div class="panel-sub" id="panel-sub">Linear-RGB Opposing Circle Stacks</div>
+      </div>
+      <button class="btn mini" id="btn-reset" title="Reset defaults (R)">Reset</button>
+    </div>
+
+    <!-- Quick Pattern Dropdown inside Drawer as well -->
+    <div class="control-group">
+      <div class="control-row">
+        <label>Sacred Geometry Pattern</label>
+      </div>
+      <select id="sel-shader"></select>
+    </div>
+
+    <!-- Contextual Symmetry / 3D Form Selector -->
+    <div class="control-group hidden-group" id="grp-symmetry">
+      <div class="control-row">
+        <label id="lbl-symmetry">Geometry Variant</label>
+      </div>
+      <select id="sel-symmetry"></select>
+    </div>
+
+    <!-- Contextual 3D Camera Controls -->
+    <div class="control-group hidden-group" id="grp-3d-cam">
+      <div class="btn-row">
+        <button class="btn active-toggle" id="btn-auto-orbit">Auto-Orbit: On</button>
+        <button class="btn" id="btn-reset-cam">Reset Camera</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-row">
+        <label>Loop Phase</label>
+        <span class="val" id="val-phase">0.0%</span>
+      </div>
+      <input type="range" id="rng-phase" min="0" max="1" step="0.0005" value="0.391" />
+      <div class="btn-row four">
+        <button class="btn mini" data-phase="0.391">00:00</button>
+        <button class="btn mini" data-phase="0.575">Gold</button>
+        <button class="btn mini" data-phase="0.770">Crimson</button>
+        <button class="btn mini" data-phase="0.000">Aligned</button>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn primary" id="btn-play">Pause</button>
+      <button class="btn" id="btn-fs">Fullscreen</button>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="control-group">
+      <div class="control-row">
+        <label id="lbl-circles">Layers per Stack (N)</label>
+        <span class="val" id="val-circles">10</span>
+      </div>
+      <input type="range" id="rng-circles" min="2" max="24" step="1" value="10" />
+    </div>
+
+    <div class="control-group">
+      <div class="control-row">
+        <label>Loop Duration</label>
+        <span class="val" id="val-duration">16.0s</span>
+      </div>
+      <input type="range" id="rng-duration" min="4" max="32" step="0.5" value="16" />
+    </div>
+
+    <div class="control-group">
+      <div class="control-row">
+        <label>Outside-In Stagger</label>
+        <span class="val" id="val-stagger">21%</span>
+      </div>
+      <input type="range" id="rng-stagger" min="0" max="0.8" step="0.005" value="0.21" />
+    </div>
+
+    <div class="control-group">
+      <div class="control-row">
+        <label>Compositing Mode</label>
+      </div>
+      <select id="sel-blend">
+        <option value="0">Linear-RGB Multiply (Optical)</option>
+        <option value="1">sRGB Multiply</option>
+        <option value="2">Linear Screen (Luminous)</option>
+        <option value="3">Chromatic Difference</option>
+        <option value="4">Single Stack (Isolate Layer)</option>
+      </select>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="btn-row">
+      <button class="btn" id="btn-copy-glsl">Copy Shadertoy</button>
+      <button class="btn" id="btn-png">Save 2K PNG</button>
+    </div>
+    <button class="btn" id="btn-record">Record 1 Seamless Loop (.webm)</button>
+
+    <div class="shortcuts">
+      <span>1-7 / [ ]: Switch</span>
+      <span>Space: Play</span>
+      <span>H: Pure HUD</span>
+    </div>
+  </div>
+
+  <button class="hud-toggle" id="hud-toggle" aria-label="Toggle controls">
+    <span class="dot"></span>
+    <span id="hud-label">Controls</span>
+  </button>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById("gl-canvas");
+      const gl = canvas.getContext("webgl2", { antialias: false, preserveDrawingBuffer: true })
+              || canvas.getContext("webgl",  { antialias: false, preserveDrawingBuffer: true });
+
+      if (!gl) {
+        document.body.innerHTML = '<div style="color:#fff;padding:40px;font-family:sans-serif">WebGL is required to run this shader suite.</div>';
+        return;
+      }
+
+      const VERT_SRC = `
+        attribute vec2 aPos;
+        void main() {
+          gl_Position = vec4(aPos, 0.0, 1.0);
+        }
+      `;
+
+      // =========================================================================
+      // SHARED OPTICAL COLOR & STAGGER LIBRARY (Valid GLSL ES 1.00 & 3.00)
+      // =========================================================================
+      const COMMON_GLSL = `
+        precision highp float;
+
+        uniform vec2  uResolution;
+        uniform float uPhase;
+        uniform int   uNumCircles;
+        uniform float uStagger;
+        uniform int   uBlendMode;
+        uniform int   uSymmetry;
+        uniform vec2  uCamRot;
+        uniform float uCamZoom;
+        uniform int   uAA;
+
+        const int   MAX_CIRCLES = 24;
+        const float PI  = 3.14159265359;
+        const float TAU = 6.28318530718;
+
+        vec3 srgb2lin(vec3 c) {
+          c = clamp(c, 0.0, 1.0);
+          vec3 lo = c / 12.92;
+          vec3 hi = pow((c + 0.055) / 1.055, vec3(2.4));
+          return mix(lo, hi, step(vec3(0.04045), c));
+        }
+
+        vec3 lin2srgb(vec3 c) {
+          c = clamp(c, 0.0, 1.0);
+          vec3 lo = 12.92 * c;
+          vec3 hi = 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055;
+          return mix(lo, hi, step(vec3(0.0031308), c));
+        }
+
+        vec3 gradientSRGB(float s) {
+          float t = clamp(0.5 * s + 0.5, 0.0, 1.0);
+          vec3 c0 = vec3(1.000, 1.000, 1.000);
+          vec3 c1 = vec3(0.341, 0.679, 0.720);
+          vec3 c2 = vec3(0.443, 0.294, 0.551);
+          vec3 c3 = vec3(0.758, 0.240, 0.340);
+          vec3 c4 = vec3(0.887, 0.513, 0.294);
+          vec3 c5 = vec3(0.856, 0.840, 0.427);
+          vec3 c6 = vec3(1.000, 1.000, 1.000);
+
+          if (t < 0.1441) return mix(c0, c1, (t - 0.0000) / (0.1441 - 0.0000));
+          if (t < 0.3130) return mix(c1, c2, (t - 0.1441) / (0.3130 - 0.1441));
+          if (t < 0.4632) return mix(c2, c3, (t - 0.3130) / (0.4632 - 0.3130));
+          if (t < 0.6045) return mix(c3, c4, (t - 0.4632) / (0.6045 - 0.4632));
+          if (t < 0.7531) return mix(c4, c5, (t - 0.6045) / (0.7531 - 0.6045));
+          return mix(c5, c6, clamp((t - 0.7531) / (0.9443 - 0.7531), 0.0, 1.0));
+        }
+
+        float staggeredProg(float staggerFrac, float u) {
+          float u0 = uStagger * clamp(staggerFrac, 0.0, 1.0);
+          return clamp((u - u0) / max(1.0 - u0, 1e-4), 0.0, 1.0);
+        }
+
+        float circleAngle(int k, float u) {
+          float fk = float(k);
+          float fn = float(uNumCircles);
+          float frac = (uNumCircles > 1) ? (fn - fk) / (fn - 1.0) : 0.0;
+          return 0.5 * PI - TAU * staggeredProg(frac, u);
+        }
+
+        vec2 rot2(vec2 p, float a) {
+          float c = cos(a), s = sin(a);
+          return vec2(c * p.x - s * p.y, s * p.x + c * p.y);
+        }
+
+        vec3 composePairLin(vec3 topLin, vec3 botLin) {
+          if (uBlendMode == 4) return topLin;
+          if (uBlendMode == 0) return topLin * botLin;
+          if (uBlendMode == 1) return srgb2lin(lin2srgb(topLin) * lin2srgb(botLin));
+          if (uBlendMode == 2) return 1.0 - (1.0 - topLin) * (1.0 - botLin);
+          return srgb2lin(abs(lin2srgb(topLin) - lin2srgb(botLin)));
+        }
+      `;
+
+      const MAIN_2D_GLSL = `
+        void main() {
+          float radiusPx = 0.485 * min(uResolution.x, uResolution.y);
+          float px = 1.0 / radiusPx;
+          vec2 center = 0.5 * uResolution;
+
+          if (uAA == 2) {
+            vec3 acc = vec3(0.0);
+            acc += renderSampleLin((gl_FragCoord.xy + vec2(-0.25, -0.25) - center) / radiusPx, uPhase, 0.65 * px);
+            acc += renderSampleLin((gl_FragCoord.xy + vec2( 0.25,  0.25) - center) / radiusPx, uPhase, 0.65 * px);
+            gl_FragColor = vec4(lin2srgb(acc * 0.5), 1.0);
+          } else {
+            vec3 acc = vec3(0.0);
+            acc += renderSampleLin((gl_FragCoord.xy + vec2(-0.375, -0.125) - center) / radiusPx, uPhase, 0.5 * px);
+            acc += renderSampleLin((gl_FragCoord.xy + vec2( 0.125, -0.375) - center) / radiusPx, uPhase, 0.5 * px);
+            acc += renderSampleLin((gl_FragCoord.xy + vec2( 0.375,  0.125) - center) / radiusPx, uPhase, 0.5 * px);
+            acc += renderSampleLin((gl_FragCoord.xy + vec2(-0.125,  0.375) - center) / radiusPx, uPhase, 0.5 * px);
+            gl_FragColor = vec4(lin2srgb(acc * 0.25), 1.0);
+          }
+        }
+      `;
+
+      // =========================================================================
+      // SHADER 1: POLAR TANGENT DYAD (Original Reference)
+      // =========================================================================
+      const BODY_TANGENT_DYAD = `
+        vec3 evalStackLin(vec2 p, float u, float px) {
+          float fn = float(uNumCircles);
+          vec3 col = vec3(1.0);
+          float aa = 0.75 * px;
+
+          for (int k = MAX_CIRCLES; k >= 1; k--) {
+            if (k > uNumCircles) continue;
+            float r = float(k) / fn;
+            vec2 c = vec2(0.0, 1.0 - r);
+            float d = length(p - c) - r;
+
+            if (k == uNumCircles || d < aa) {
+              vec2 q = (p - c) / r;
+              float ang = circleAngle(k, u);
+              float s = dot(q, vec2(cos(ang), sin(ang)));
+              vec3 layerLin = srgb2lin(gradientSRGB(s));
+
+              if (k == uNumCircles) {
+                col = layerLin;
+              } else {
+                col = mix(col, layerLin, smoothstep(aa, -aa, d));
+              }
+            }
+          }
+          return col;
+        }
+
+        vec3 renderSampleLin(vec2 p, float u, float px) {
+          float diskMask = smoothstep(px, -px, length(p) - 1.0);
+          if (diskMask <= 0.0) return vec3(0.0);
+
+          vec3 topLin = evalStackLin(p, u, px);
+          if (uBlendMode == 4) return topLin * diskMask;
+          vec3 botLin = evalStackLin(-p, u, px);
+          return composePairLin(topLin, botLin) * diskMask;
+        }
+      `;
+
+      // =========================================================================
+      // SHADER 2: POLAR TANGENT SPHERES 3D (4 Sculptural & Optical 3D Forms)
+      // =========================================================================
+      const BODY_TANGENT_3D = `
+        vec3 evalStack3D(vec3 P, float u, float aa, out float minShellDist) {
+          float fn = float(uNumCircles);
+          vec3 col = vec3(1.0);
+          minShellDist = 10.0;
+
+          for (int k = MAX_CIRCLES; k >= 1; k--) {
+            if (k > uNumCircles) continue;
+            float fk = float(k);
+            float r = fk / fn;
+            vec3 c = vec3(0.0, 1.0 - r, 0.0);
+            float d = length(P - c) - r;
+            if (k < uNumCircles) {
+              minShellDist = min(minShellDist, abs(d));
+            }
+
+            if (k == uNumCircles || d < aa) {
+              vec3 q = (P - c) / r;
+              float frac = (uNumCircles > 1) ? (fn - fk) / (fn - 1.0) : 0.0;
+              float prog = staggeredProg(frac, u);
+              float ang = 0.5 * PI - TAU * prog;
+              float azim = 0.52 * sin(TAU * prog);
+              vec3 dir3 = vec3(cos(ang) * cos(azim), sin(ang), cos(ang) * sin(azim));
+              float s = dot(q, dir3);
+              vec3 layerLin = srgb2lin(gradientSRGB(s));
+
+              if (k == uNumCircles) {
+                col = layerLin;
+              } else {
+                col = mix(col, layerLin, smoothstep(aa, -aa, d));
+              }
+            }
+          }
+          return col;
+        }
+
+        vec3 evalBoth3D(vec3 P, float u, float aa, out float shellEdge) {
+          float e1, e2;
+          vec3 topLin = evalStack3D( P, u, aa, e1);
+          if (uBlendMode == 4) {
+            shellEdge = e1;
+            return topLin;
+          }
+          vec3 botLin = evalStack3D(-P, u, aa, e2);
+          shellEdge = min(e1, e2);
+          return composePairLin(topLin, botLin);
+        }
+
+        void halfSpaceInterval(vec3 ro, vec3 rd, vec3 n, out float t0, out float t1) {
+          float o = dot(ro, n);
+          float d = dot(rd, n);
+          if (abs(d) < 1e-6) {
+            if (o > 0.0) { t0 = -1e6; t1 = 1e6; }
+            else         { t0 =  1e6; t1 = -1e6; }
+          } else {
+            float tp = -o / d;
+            if (d > 0.0) { t0 = tp;   t1 = 1e6; }
+            else         { t0 = -1e6; t1 = tp;  }
+          }
+        }
+
+        // Form 0: Architectural Cutaway Geode Sphere
+        vec3 renderCutawaySphere(vec3 ro, vec3 rd, float u, float px) {
+          float b = dot(ro, rd);
+          float c = dot(ro, ro) - 1.0;
+          float disc = b * b - c;
+          if (disc <= 0.0) return vec3(0.0);
+
+          float sq = sqrt(disc);
+          float ts0 = -b - sq;
+          float ts1 = -b + sq;
+          if (ts1 <= 0.001) return vec3(0.0);
+
+          // Open 115-deg meridian wedge revealing two exact tangent-pole faces
+          vec3 n1 = vec3(0.0, 0.0, 1.0);
+          vec3 n2 = normalize(vec3(0.9063078, 0.0, 0.4226183));
+          float ta0, ta1, tb0, tb1;
+          halfSpaceInterval(ro, rd, n1, ta0, ta1);
+          halfSpaceInterval(ro, rd, n2, tb0, tb1);
+          float tw0 = max(ta0, tb0);
+          float tw1 = min(ta1, tb1);
+          float sEnter = max(ts0, 0.001);
+
+          float tHit = -1.0;
+          vec3 nHit = vec3(0.0, 0.0, 1.0);
+          int surfType = 0;
+
+          if (tw0 >= tw1 || tw1 <= sEnter || tw0 >= ts1 || tw0 > sEnter) {
+            tHit = sEnter;
+            nHit = (ts0 > 0.001) ? normalize(ro + rd * tHit) : -rd;
+            surfType = 0;
+          } else if (tw1 < ts1) {
+            tHit = tw1;
+            nHit = (abs(tw1 - ta1) < abs(tw1 - tb1)) ? n1 : n2;
+            surfType = 1;
+          } else {
+            return vec3(0.0);
+          }
+
+          vec3 P = ro + rd * tHit;
+          vec3 L1 = normalize(vec3(0.55, 0.78, 0.62));
+          vec3 L2 = normalize(vec3(-0.72, -0.35, 0.58));
+          float fres = pow(1.0 - clamp(dot(-rd, nHit), 0.0, 1.0), 4.0);
+
+          if (surfType == 1) {
+            // Flat polished cutaway interior cross-section
+            float shellEdge;
+            vec3 baseLin = evalBoth3D(P, u, 0.85 * px, shellEdge);
+
+            // Precision micro-grooves along nested sphere boundaries
+            float groove = exp(-shellEdge / max(1.8 * px, 0.0025));
+            float spineAO = mix(0.74, 1.0, smoothstep(0.0, 0.24, length(P.xz)));
+            float rimHighlight = smoothstep(0.975, 0.999, length(P));
+
+            float diff = 0.72 + 0.28 * max(dot(nHit, L1), 0.0) + 0.10 * max(dot(nHit, L2), 0.0);
+            float spec = pow(max(dot(reflect(rd, nHit), L1), 0.0), 56.0) * 0.28
+                       + groove * 0.09 * max(dot(nHit, L1), 0.2);
+
+            vec3 col = baseLin * diff * spineAO * (1.0 - 0.14 * groove);
+            col += vec3(1.0, 0.96, 0.92) * (spec + fres * 0.10 + rimHighlight * 0.14);
+            return col;
+          } else {
+            // Curved refractive crystal globe exterior looking into the nested core
+            vec3 rdIn = refract(rd, nHit, 0.74);
+            if (length(rdIn) < 0.01) rdIn = rd;
+            float sMid = clamp(-dot(P, rdIn), 0.0, 1.6);
+            vec3 Pcore = P + rdIn * (0.72 * sMid);
+
+            float shellOuter, shellCore;
+            vec3 skinLin = evalBoth3D(P * 0.985, u, 1.2 * px, shellOuter);
+            vec3 coreLin = evalBoth3D(Pcore, u, 1.5 * px, shellCore);
+            vec3 baseLin = mix(coreLin, skinLin, 0.28 + 0.35 * fres);
+
+            float diff = 0.62 + 0.38 * max(dot(nHit, L1), 0.0) + 0.15 * max(dot(nHit, L2), 0.0);
+            float spec1 = pow(max(dot(reflect(rd, nHit), L1), 0.0), 72.0) * 0.55;
+            float spec2 = pow(max(dot(reflect(rd, nHit), L2), 0.0), 28.0) * 0.18;
+            float poleGlow = exp(-14.0 * min(length(P - vec3(0.0, 1.0, 0.0)), length(P - vec3(0.0, -1.0, 0.0))));
+
+            float edgeAA = smoothstep(0.0, 1.5 * px, sqrt(disc));
+            vec3 col = baseLin * diff + vec3(1.0, 0.97, 0.94) * (spec1 + fres * 0.18 + poleGlow * 0.22)
+                     + vec3(0.35, 0.72, 0.80) * spec2;
+            return col * edgeAA;
+          }
+        }
+
+        // Form 1: Analytic Translucent Stained-Glass Tangent Spheres
+        void accumGlassStack(
+          vec3 ro, vec3 rd, float poleSign, float u,
+          out vec3 transLin, out vec3 specAcc
+        ) {
+          float fn = float(uNumCircles);
+          transLin = vec3(1.0);
+          specAcc = vec3(0.0);
+          vec3 L1 = normalize(vec3(0.52, 0.78, 0.62));
+          vec3 L2 = normalize(vec3(-0.70, -0.35, 0.60));
+          float baseDensity = clamp(2.35 / fn, 0.12, 0.68);
+
+          for (int k = 1; k <= MAX_CIRCLES; k++) {
+            if (k > uNumCircles) continue;
+            float fk = float(k);
+            float r = fk / fn;
+            vec3 c = vec3(0.0, poleSign * (1.0 - r), 0.0);
+
+            vec3 oc = ro - c;
+            float b = dot(oc, rd);
+            float cc = dot(oc, oc) - r * r;
+            float disc = b * b - cc;
+            if (disc <= 0.0) continue;
+
+            float sq = sqrt(disc);
+            float t0 = -b - sq;
+            float t1 = -b + sq;
+            if (t1 <= 0.001) continue;
+
+            float frac = (uNumCircles > 1) ? (fn - fk) / (fn - 1.0) : 0.0;
+            float prog = staggeredProg(frac, u);
+            float ang = 0.5 * PI - TAU * prog;
+            float azim = 0.52 * sin(TAU * prog);
+            vec3 dir3 = poleSign * vec3(cos(ang) * cos(azim), sin(ang), cos(ang) * sin(azim));
+
+            if (t0 > 0.001) {
+              vec3 P0 = ro + rd * t0;
+              vec3 N0 = (P0 - c) / r;
+              float s0 = dot(N0, dir3);
+              vec3 col0 = srgb2lin(gradientSRGB(s0));
+              float fres = pow(1.0 - abs(dot(rd, N0)), 3.2);
+              float w = clamp(baseDensity * (0.68 + 0.95 * fres), 0.0, 0.92);
+              transLin *= mix(vec3(1.0), col0, w);
+
+              float sp = pow(max(dot(reflect(rd, N0), L1), 0.0), 48.0) * 0.34
+                       + pow(max(dot(reflect(rd, N0), L2), 0.0), 22.0) * 0.14;
+              specAcc += (sp + fres * 0.04) * mix(vec3(1.0), col0, 0.45) * (3.2 / (fn + 3.0));
+            }
+            if (t1 > 0.001) {
+              vec3 P1 = ro + rd * t1;
+              vec3 N1 = (P1 - c) / r;
+              float s1 = dot(N1, dir3);
+              vec3 col1 = srgb2lin(gradientSRGB(s1));
+              transLin *= mix(vec3(1.0), col1, 0.32 * baseDensity);
+            }
+          }
+        }
+
+        vec3 renderGlassSpheres(vec3 ro, vec3 rd, float u, float px) {
+          float b = dot(ro, rd);
+          float c = dot(ro, ro) - 1.0;
+          float disc = b * b - c;
+          if (disc <= 0.0) return vec3(0.0);
+
+          vec3 transN, specN, transS, specS;
+          accumGlassStack(ro, rd,  1.0, u, transN, specN);
+          transN = pow(clamp(transN, 0.0, 1.0), vec3(0.72));
+
+          vec3 bodyLin;
+          vec3 specTot = specN;
+          if (uBlendMode == 4) {
+            bodyLin = transN;
+          } else {
+            accumGlassStack(ro, rd, -1.0, u, transS, specS);
+            transS = pow(clamp(transS, 0.0, 1.0), vec3(0.72));
+            bodyLin = composePairLin(transN, transS);
+            specTot += specS;
+          }
+
+          float tOuter = -b - sqrt(disc);
+          vec3 Pout = ro + rd * max(tOuter, 0.0);
+          vec3 Nout = normalize(Pout);
+          float outerFres = pow(1.0 - clamp(dot(-rd, Nout), 0.0, 1.0), 4.2);
+          float poleCaustic = exp(-12.0 * min(length(Pout - vec3(0.0, 1.0, 0.0)), length(Pout - vec3(0.0, -1.0, 0.0))));
+          float edgeAA = smoothstep(0.0, 1.5 * px, sqrt(disc));
+
+          vec3 col = bodyLin * (0.94 + 0.18 * poleCaustic) + specTot + vec3(0.95, 0.98, 1.0) * (outerFres * 0.18 + poleCaustic * 0.16);
+          return col * edgeAA;
+        }
+
+        // Form 2: O(1) Terraced Kinetic Relief Astrolabe (Raymarched)
+        float sdRelief(vec3 P) {
+          float dCyl = length(P.xy) - 1.0;
+          if (dCyl > 0.08) return dCyl;
+
+          float fn = float(uNumCircles);
+          float x2 = P.x * P.x;
+          float yn = clamp(1.0 - P.y, 1e-4, 2.0);
+          float ys = clamp(1.0 + P.y, 1e-4, 2.0);
+
+          // Exact parabolic pencil closed-form: r_min = (x^2 + (1 - y)^2) / (2*(1 - y))
+          float rn = clamp((x2 + yn * yn) / (2.0 * yn), 0.0, 1.0);
+          float rs = clamp((x2 + ys * ys) / (2.0 * ys), 0.0, 1.0);
+
+          float uN = (1.0 - rn) * fn;
+          float stepN = (floor(uN) + smoothstep(0.72, 0.98, fract(uN))) / fn;
+
+          float stepS = 0.0;
+          if (uBlendMode != 4) {
+            float uS = (1.0 - rs) * fn;
+            stepS = (floor(uS) + smoothstep(0.72, 0.98, fract(uS))) / fn;
+          }
+
+          float halfH = 0.045 + 0.165 * (stepN + stepS);
+          float dZ = abs(P.z) - halfH;
+          vec2 w = vec2(dCyl, dZ);
+          return min(max(w.x, w.y), 0.0) + length(max(w, 0.0)) - 0.010;
+        }
+
+        vec3 calcReliefNormal(vec3 P) {
+          vec2 e = vec2(0.0022, -0.0022);
+          return normalize(
+            e.xyy * sdRelief(P + e.xyy) +
+            e.yyx * sdRelief(P + e.yyx) +
+            e.yxy * sdRelief(P + e.yxy) +
+            e.xxx * sdRelief(P + e.xxx)
+          );
+        }
+
+        vec3 evalPlanarStack2D(vec2 p, float u, float aa) {
+          float fn = float(uNumCircles);
+          vec3 col = vec3(1.0);
+          for (int k = MAX_CIRCLES; k >= 1; k--) {
+            if (k > uNumCircles) continue;
+            float r = float(k) / fn;
+            vec2 c = vec2(0.0, 1.0 - r);
+            float d = length(p - c) - r;
+            if (k == uNumCircles || d < aa) {
+              vec2 q = (p - c) / r;
+              float ang = circleAngle(k, u);
+              vec3 layerLin = srgb2lin(gradientSRGB(dot(q, vec2(cos(ang), sin(ang)))));
+              col = (k == uNumCircles) ? layerLin : mix(col, layerLin, smoothstep(aa, -aa, d));
+            }
+          }
+          return col;
+        }
+
+        vec3 renderReliefAstrolabe(vec3 ro, vec3 rd, float u, float px) {
+          // Bounding sphere pre-test (radius 1.12)
+          float b = dot(ro, rd);
+          float c = dot(ro, ro) - 1.26;
+          float disc = b * b - c;
+          if (disc <= 0.0) return vec3(0.0);
+          float t = max(-b - sqrt(disc), 0.001);
+          float tMax = -b + sqrt(disc);
+
+          bool hit = false;
+          for (int i = 0; i < 64; i++) {
+            if (t > tMax) break;
+            float d = sdRelief(ro + rd * t);
+            if (d < 0.0012) { hit = true; break; }
+            t += 0.52 * d;
+          }
+          if (!hit) return vec3(0.0);
+
+          vec3 P = ro + rd * t;
+          vec3 N = calcReliefNormal(P);
+          vec2 p2 = clamp(P.xy, -0.999, 0.999);
+          if (length(p2) > 0.999) p2 = normalize(p2) * 0.999;
+
+          vec3 topLin = evalPlanarStack2D(p2, u, 0.9 * px);
+          vec3 baseLin = (uBlendMode == 4) ? topLin : composePairLin(topLin, evalPlanarStack2D(-p2, u, 0.9 * px));
+
+          vec3 L1 = normalize(vec3(0.50, 0.72, 0.68));
+          vec3 L2 = normalize(vec3(-0.68, -0.40, 0.60));
+          float ao = clamp(0.55 + 0.45 * (sdRelief(P + N * 0.06) / 0.06), 0.45, 1.0);
+          float diff = 0.60 + 0.36 * max(dot(N, L1), 0.0) + 0.14 * max(dot(N, L2), 0.0);
+          float spec = pow(max(dot(reflect(rd, N), L1), 0.0), 42.0) * 0.34;
+          float fres = pow(1.0 - clamp(dot(-rd, N), 0.0, 1.0), 3.6);
+
+          return baseLin * diff * ao + vec3(1.0, 0.96, 0.90) * (spec + fres * 0.14);
+        }
+
+        // Form 3: 3D Villarceau Torus Sculpture
+        float sdTorus(vec3 P) {
+          vec2 q = vec2(length(P.xy) - 0.56, P.z);
+          return length(q) - 0.42;
+        }
+
+        vec3 renderVillarceauTorus(vec3 ro, vec3 rd, float u, float px) {
+          float b = dot(ro, rd);
+          float c = dot(ro, ro) - 1.18;
+          float disc = b * b - c;
+          if (disc <= 0.0) return vec3(0.0);
+          float t = max(-b - sqrt(disc), 0.001);
+          float tMax = -b + sqrt(disc);
+
+          bool hit = false;
+          for (int i = 0; i < 56; i++) {
+            if (t > tMax) break;
+            float d = sdTorus(ro + rd * t);
+            if (d < 0.001) { hit = true; break; }
+            t += d;
+          }
+          if (!hit) return vec3(0.0);
+
+          vec3 P = ro + rd * t;
+          float rxy = max(length(P.xy), 1e-5);
+          vec3 centerRing = vec3(P.xy * (0.56 / rxy), 0.0);
+          vec3 N = normalize(P - centerRing);
+
+          // Helical Villarceau mapping into the unit disk
+          vec2 pTor = rot2(P.xy / 0.98, 0.72 * (P.z / 0.42));
+          vec3 topLin = evalPlanarStack2D(pTor, u, 1.1 * px);
+          vec3 baseLin = (uBlendMode == 4) ? topLin : composePairLin(topLin, evalPlanarStack2D(-pTor, u, 1.1 * px));
+
+          vec3 L1 = normalize(vec3(0.55, 0.75, 0.62));
+          vec3 L2 = normalize(vec3(-0.70, -0.35, 0.62));
+          float holeAO = mix(0.62, 1.0, smoothstep(0.14, 0.58, rxy));
+          float diff = 0.62 + 0.36 * max(dot(N, L1), 0.0) + 0.14 * max(dot(N, L2), 0.0);
+          float spec = pow(max(dot(reflect(rd, N), L1), 0.0), 54.0) * 0.40;
+          float fres = pow(1.0 - clamp(dot(-rd, N), 0.0, 1.0), 3.8);
+
+          return baseLin * diff * holeAO + vec3(1.0, 0.97, 0.93) * (spec + fres * 0.16);
+        }
+
+        vec3 traceSample3D(vec2 subOffset) {
+          float minDim = min(uResolution.x, uResolution.y);
+          float px = 2.0 / minDim;
+          vec2 uv = (gl_FragCoord.xy + subOffset - 0.5 * uResolution) / (0.5 * minDim);
+
+          float yaw = uCamRot.x;
+          float pitch = uCamRot.y;
+          vec3 ro = uCamZoom * vec3(cos(pitch) * sin(yaw), sin(pitch), cos(pitch) * cos(yaw));
+          vec3 fwd = normalize(-ro);
+          vec3 right = normalize(cross(fwd, vec3(0.0, 1.0, 0.0)));
+          vec3 up = cross(right, fwd);
+          vec3 rd = normalize(fwd * 2.45 + right * uv.x + up * uv.y);
+
+          if (uSymmetry == 1) return renderGlassSpheres(ro, rd, uPhase, px);
+          if (uSymmetry == 2) return renderReliefAstrolabe(ro, rd, uPhase, px);
+          if (uSymmetry == 3) return renderVillarceauTorus(ro, rd, uPhase, px);
+          return renderCutawaySphere(ro, rd, uPhase, px);
+        }
+
+        void main() {
+          if (uAA == 2) {
+            vec3 acc = vec3(0.0);
+            acc += traceSample3D(vec2(-0.25, -0.25));
+            acc += traceSample3D(vec2( 0.25,  0.25));
+            gl_FragColor = vec4(lin2srgb(acc * 0.5), 1.0);
+          } else {
+            vec3 acc = vec3(0.0);
+            acc += traceSample3D(vec2(-0.375, -0.125));
+            acc += traceSample3D(vec2( 0.125, -0.375));
+            acc += traceSample3D(vec2( 0.375,  0.125));
+            acc += traceSample3D(vec2(-0.125,  0.375));
+            gl_FragColor = vec4(lin2srgb(acc * 0.25), 1.0);
+          }
+        }
+      `;
+
+      // =========================================================================
+      // SHADER 3: FLOWER OF LIFE (19-Circle Hexagonal Sacred Rosette)
+      // =========================================================================
+      const BODY_FLOWER_OF_LIFE = `
+        vec3 evalSingleSubRing(vec2 rel, int m, int nSub, float Rf, float tierFrac, float baseAng, float chir, float u) {
+          float fn = float(nSub);
+          float rm = Rf * float(m) / fn;
+          vec2 q = rel / max(rm, 1e-4);
+          float subFrac = (nSub > 1) ? (fn - float(m)) / (fn - 1.0) : 0.0;
+          float totalFrac = 0.55 * tierFrac + 0.45 * subFrac;
+          float prog = staggeredProg(totalFrac, u);
+          float ang = baseAng + chir * TAU * prog;
+          float s = dot(q, vec2(cos(ang), sin(ang)));
+          return srgb2lin(gradientSRGB(s));
+        }
+
+        // O(1) exact anti-aliased evaluation of nSub concentric circles inside a sacred node
+        void accumSacredNode(
+          vec2 p, vec2 center, float Rf, int nSub, float tierFrac, float baseAng, float chir,
+          float u, float aa, inout vec3 prodLin, inout vec3 screenInv, inout float overlapCount
+        ) {
+          vec2 rel = p - center;
+          float rho = length(rel);
+          float dOuter = rho - Rf;
+          if (dOuter >= aa) return;
+
+          float outerMask = smoothstep(aa, -aa, dOuter);
+          float fn = float(nSub);
+          float fIdx = clamp(rho / Rf, 0.0, 0.9999) * fn;
+          int b = int(floor(fIdx + 0.5));
+
+          vec3 nodeLin;
+          if (b <= 0) {
+            nodeLin = evalSingleSubRing(rel, 1, nSub, Rf, tierFrac, baseAng, chir, u);
+          } else if (b >= nSub) {
+            nodeLin = evalSingleSubRing(rel, nSub, nSub, Rf, tierFrac, baseAng, chir, u);
+          } else {
+            vec3 colIn  = evalSingleSubRing(rel, b,     nSub, Rf, tierFrac, baseAng, chir, u);
+            vec3 colOut = evalSingleSubRing(rel, b + 1, nSub, Rf, tierFrac, baseAng, chir, u);
+            float rb = Rf * float(b) / fn;
+            nodeLin = mix(colOut, colIn, smoothstep(aa, -aa, rho - rb));
+          }
+
+          vec3 effLin = mix(vec3(1.0), nodeLin, outerMask);
+          prodLin *= effLin;
+          screenInv *= (vec3(1.0) - mix(vec3(0.0), nodeLin, outerMask));
+          overlapCount += outerMask;
+        }
+
+        vec3 evalConcentricBackdrop(vec2 p, float u, float aa) {
+          float rho = length(p);
+          int nRings = (uNumCircles > 2) ? uNumCircles : 2;
+          float fn = float(nRings);
+          float fIdx = clamp(rho, 0.0, 0.9999) * fn;
+          int b = int(floor(fIdx + 0.5));
+
+          int mA = (b < 1) ? 1 : ((b > nRings) ? nRings : b);
+          int b1 = b + 1;
+          int mB = (b1 < 1) ? 1 : ((b1 > nRings) ? nRings : b1);
+          float rA = float(mA) / fn;
+          float rB = float(mB) / fn;
+          float aA = circleAngle(mA, u);
+          float aB = circleAngle(mB, u);
+          vec3 cA = srgb2lin(gradientSRGB(dot(p / rA, vec2(cos(aA), sin(aA)))));
+          vec3 cB = srgb2lin(gradientSRGB(dot(p / rB, vec2(cos(aB), sin(aB)))));
+          if (b <= 0 || b >= nRings) return (b <= 0) ? cA : cB;
+          return mix(cB, cA, smoothstep(aa, -aa, rho - rA));
+        }
+
+        vec3 renderSampleLin(vec2 p, float u, float px) {
+          float r = length(p);
+          float diskMask = smoothstep(px, -px, r - 1.0);
+          if (diskMask <= 0.0) return vec3(0.0);
+
+          float aa = 0.75 * px;
+          int nSub = int(max(2.0, floor((float(uNumCircles) + 1.0) * 0.5)));
+
+          // Symmetry modes: 0 = 19-Circle Flower (R=1/3), 1 = 7-Circle Seed (R=0.5), 2 = Deep Vesica Honeycomb (L=1/3, R=0.5)
+          float L  = (uSymmetry == 1) ? 0.5 : (1.0 / 3.0);
+          float Rf = (uSymmetry == 0) ? (1.0 / 3.0) : 0.5;
+
+          vec3 prodLin = vec3(1.0);
+          vec3 screenInv = vec3(1.0);
+          float overlaps = 0.0;
+
+          // Center Seed node
+          accumSacredNode(p, vec2(0.0), Rf, nSub, 0.0, 0.5 * PI, -1.0, u, aa, prodLin, screenInv, overlaps);
+
+          // 6 Ring-1 Sacred Petals
+          for (int j = 0; j < 6; j++) {
+            float a = float(j) * (PI / 3.0);
+            vec2 dir = vec2(sin(a), cos(a));
+            accumSacredNode(p, L * dir, Rf, nSub, 0.36, 0.5 * PI - a, 1.0, u, aa, prodLin, screenInv, overlaps);
+          }
+
+          // 12 Ring-2 Flower of Life Petals
+          if (uSymmetry != 1) {
+            for (int j = 0; j < 6; j++) {
+              float a = float(j) * (PI / 3.0);
+              vec2 dirA = vec2(sin(a), cos(a));
+              accumSacredNode(p, (2.0 * L) * dirA, Rf, nSub, 0.72, 0.5 * PI - a, -1.0, u, aa, prodLin, screenInv, overlaps);
+
+              float aB = a + PI / 6.0;
+              vec2 dirB = vec2(sin(aB), cos(aB));
+              accumSacredNode(p, (1.7320508 * L) * dirB, Rf, nSub, 0.95, 0.5 * PI - aB, 1.0, u, aa, prodLin, screenInv, overlaps);
+            }
+          }
+
+          vec3 bgA = evalConcentricBackdrop( p, u, aa);
+          vec3 bgB = evalConcentricBackdrop(-p, u, aa);
+          vec3 haloLin = bgA * bgB;
+
+          if (uBlendMode == 4) {
+            return mix(bgA, prodLin, clamp(overlaps, 0.0, 1.0)) * diskMask;
+          }
+
+          // Adaptive optical exponent keeps multi-petal intersections jewel-toned
+          float optExp = min(1.0, 2.05 / max(overlaps + 0.65, 1.0));
+          vec3 latticeLin;
+          if (uBlendMode == 0) {
+            latticeLin = pow(clamp(prodLin * mix(vec3(1.0), haloLin, 0.55), 0.0, 1.0), vec3(optExp));
+          } else if (uBlendMode == 1) {
+            vec3 sMul = pow(clamp(lin2srgb(prodLin) * lin2srgb(haloLin), 0.0, 1.0), vec3(optExp));
+            latticeLin = srgb2lin(sMul);
+          } else if (uBlendMode == 2) {
+            latticeLin = 1.0 - pow(clamp(screenInv * (1.0 - 0.45 * haloLin), 0.0, 1.0), vec3(optExp));
+          } else {
+            latticeLin = srgb2lin(abs(lin2srgb(pow(clamp(prodLin, 0.0, 1.0), vec3(optExp))) - lin2srgb(bgA)));
+          }
+
+          return latticeLin * diskMask;
+        }
+      `;
+
+      // =========================================================================
+      // SHADER 4: SRI YANTRA / SHATKONA (Interlocking Sacred Star Polygons)
+      // =========================================================================
+      const BODY_SRI_YANTRA = `
+        // Exact unit-gradient signed distance to a regular polygon with vertex at +Y
+        float sdSacredPolygon(vec2 q, float R, int sides) {
+          float fs = float(sides);
+          float an = TAU / fs;
+          float he = PI / fs;
+          float phi = atan(q.x, q.y);
+          float sector = mod(phi, an) - he;
+          return length(q) * cos(sector) - R * cos(he);
+        }
+
+        vec3 evalYantraStack(vec2 p, int sides, float u, float px) {
+          float fn = float(uNumCircles);
+          vec3 col = vec3(1.0);
+          float aa = 0.75 * px;
+
+          for (int k = MAX_CIRCLES; k >= 1; k--) {
+            if (k > uNumCircles) continue;
+            float r = float(k) / fn;
+
+            if (k == uNumCircles) {
+              // Outer sacred lotus perimeter circle
+              float ang = circleAngle(k, u);
+              col = srgb2lin(gradientSRGB(dot(p, vec2(cos(ang), sin(ang)))));
+            } else {
+              float polyScale = float(k) / max(fn - 1.0, 1.0);
+              float R = 0.96 * polyScale;
+              // Authentic vertical spine shift for 3-sided Sri Yantra interlocking facets
+              float shiftY = (sides == 3) ? (0.23 * (1.0 - polyScale)) : 0.0;
+              vec2 c = vec2(0.0, shiftY);
+              float d = sdSacredPolygon(p - c, R, sides);
+
+              if (d < aa) {
+                vec2 q = (p - c) / max(R, 1e-4);
+                float ang = circleAngle(k, u);
+                float s = dot(q, vec2(cos(ang), sin(ang)));
+                vec3 layerLin = srgb2lin(gradientSRGB(s));
+                col = mix(col, layerLin, smoothstep(aa, -aa, d));
+              }
+            }
+          }
+          return col;
+        }
+
+        vec3 renderSampleLin(vec2 p, float u, float px) {
+          float diskMask = smoothstep(px, -px, length(p) - 1.0);
+          if (diskMask <= 0.0) return vec3(0.0);
+
+          int sides = (uSymmetry >= 3 && uSymmetry <= 6) ? uSymmetry : 3;
+          vec3 upLin = evalYantraStack(p, sides, u, px);
+          if (uBlendMode == 4) return upLin * diskMask;
+
+          // Invert gradient axis by PI and interlock even polygons by PI/sides to form star mandalas
+          float dualRot = PI + ((sides == 4 || sides == 6) ? (PI / float(sides)) : 0.0);
+          vec2 pDual = rot2(p, dualRot);
+          vec3 downLin = evalYantraStack(pDual, sides, u, px);
+
+          return composePairLin(upLin, downLin) * diskMask;
+        }
+      `;
+
+      // =========================================================================
+      // SHADER 5: TRIQUETRA & MULTI-POLE LOTUS ROSETTE
+      // =========================================================================
+      const BODY_TRIQUETRA_ROSETTE = `
+        vec3 evalPoleStack(vec2 p, float u, float px) {
+          float fn = float(uNumCircles);
+          vec3 col = vec3(1.0);
+          float aa = 0.75 * px;
+
+          for (int k = MAX_CIRCLES; k >= 1; k--) {
+            if (k > uNumCircles) continue;
+            float r = float(k) / fn;
+            vec2 c = vec2(0.0, 1.0 - r);
+            float d = length(p - c) - r;
+
+            if (k == uNumCircles || d < aa) {
+              vec2 q = (p - c) / r;
+              float ang = circleAngle(k, u);
+              vec3 layerLin = srgb2lin(gradientSRGB(dot(q, vec2(cos(ang), sin(ang)))));
+              col = (k == uNumCircles) ? layerLin : mix(col, layerLin, smoothstep(aa, -aa, d));
+            }
+          }
+          return col;
+        }
+
+        vec3 renderSampleLin(vec2 p, float u, float px) {
+          float diskMask = smoothstep(px, -px, length(p) - 1.0);
+          if (diskMask <= 0.0) return vec3(0.0);
+
+          int poles = (uSymmetry >= 3 && uSymmetry <= 6) ? uSymmetry : 3;
+          float fp = float(poles);
+
+          vec3 prodLin = vec3(1.0);
+          vec3 prodSRGB = vec3(1.0);
+          vec3 screenInv = vec3(1.0);
+          vec3 diffAcc = vec3(0.0);
+          vec3 firstLin = vec3(1.0);
+
+          for (int m = 0; m < 6; m++) {
+            if (m >= poles) continue;
+            vec2 pm = rot2(p, -float(m) * TAU / fp);
+            vec3 st = evalPoleStack(pm, u, px);
+            if (m == 0) firstLin = st;
+            prodLin *= st;
+            prodSRGB *= lin2srgb(st);
+            screenInv *= (vec3(1.0) - st);
+            diffAcc = abs(diffAcc - lin2srgb(st));
+          }
+
+          if (uBlendMode == 4) return firstLin * diskMask;
+
+          float optExp = 1.92 / fp;
+          vec3 outLin;
+          if (uBlendMode == 0) {
+            outLin = pow(clamp(prodLin, 0.0, 1.0), vec3(optExp));
+          } else if (uBlendMode == 1) {
+            outLin = srgb2lin(pow(clamp(prodSRGB, 0.0, 1.0), vec3(optExp)));
+          } else if (uBlendMode == 2) {
+            outLin = 1.0 - pow(clamp(screenInv, 0.0, 1.0), vec3(optExp));
+          } else {
+            outLin = srgb2lin(clamp(diffAcc, 0.0, 1.0));
+          }
+          return outLin * diskMask;
+        }
+      `;
+
+      // =========================================================================
+      // SHADER 6: METATRON'S CUBE (13-Node Fruit of Life & 78-Line Platonic Lattice)
+      // =========================================================================
+      const BODY_METATRON_CUBE = `
+        float sdSeg(vec2 p, vec2 a, vec2 b) {
+          vec2 pa = p - a, ba = b - a;
+          float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+          return length(pa - ba * h);
+        }
+
+        // Exact D6 symmetry-folded distance to all 78 chords connecting the 13 Fruit of Life centers
+        float sdMetatron78(vec2 p) {
+          float r = length(p);
+          float a = abs(mod(atan(p.x, p.y) + PI / 6.0, PI / 3.0) - PI / 6.0);
+          vec2 pf = r * vec2(sin(a), cos(a));
+
+          float rI = 0.40;
+          float rO = 0.80;
+          vec2 e0  = vec2( 0.0,        1.0);
+          vec2 e1  = vec2( 0.8660254,  0.5);
+          vec2 e2  = vec2( 0.8660254, -0.5);
+          vec2 em1 = vec2(-0.8660254,  0.5);
+
+          float d = sdSeg(pf, vec2(0.0), rO * e0);            // 6 diameters (30 collinear chords)
+          d = min(d, sdSeg(pf, rI * e0,  rI * e1));           // Inner Hexagon (6)
+          d = min(d, sdSeg(pf, rO * e0,  rO * e1));           // Outer Hexagon (6)
+          d = min(d, sdSeg(pf, rI * em1, rI * e1));           // Inner Shatkona A (3)
+          d = min(d, sdSeg(pf, rI * e0,  rI * e2));           // Inner Shatkona B (3)
+          d = min(d, sdSeg(pf, rO * em1, rO * e1));           // Outer Shatkona A (3)
+          d = min(d, sdSeg(pf, rO * e0,  rO * e2));           // Outer Shatkona B (3)
+          d = min(d, sdSeg(pf, rI * e0,  rO * e1));           // Cube/Octahedron 60-deg A (6)
+          d = min(d, sdSeg(pf, rO * e0,  rI * e1));           // Cube/Octahedron 60-deg B (6)
+          d = min(d, sdSeg(pf, rI * em1, rO * e1));           // Star/Icosa 120-deg A (3)
+          d = min(d, sdSeg(pf, rO * em1, rI * e1));           // Star/Icosa 120-deg B (3)
+          d = min(d, sdSeg(pf, rI * e0,  rO * e2));           // Star/Icosa 120-deg C (3)
+          d = min(d, sdSeg(pf, rO * e0,  rI * e2));           // Star/Icosa 120-deg D (3)
+          return d;
+        }
+
+        float sdHexPoly(vec2 q, float R, int sides) {
+          float fs = float(sides);
+          float an = TAU / fs;
+          float he = PI / fs;
+          float sector = mod(atan(q.x, q.y), an) - he;
+          return length(q) * cos(sector) - R * cos(he);
+        }
+
+        // Evaluate nested tangent stack inside a Fruit of Life circle of radius R=0.20
+        vec3 evalFruitNode(vec2 rel, float poleAngle, float tierFrac, float u, float aa) {
+          float Rf = 0.20;
+          int nSub = int(max(2.0, floor((float(uNumCircles) + 1.0) * 0.5)));
+          float fn = float(nSub);
+          vec2 pr = rot2(rel, -poleAngle);
+          vec3 col = vec3(1.0);
+
+          for (int k = 12; k >= 1; k--) {
+            if (k > nSub) continue;
+            float rk = Rf * float(k) / fn;
+            vec2 c = vec2(0.0, Rf - rk);
+            float d = length(pr - c) - rk;
+            if (k == nSub || d < aa) {
+              vec2 q = (pr - c) / rk;
+              float subFrac = (nSub > 1) ? (fn - float(k)) / (fn - 1.0) : 0.0;
+              float prog = staggeredProg(0.5 * tierFrac + 0.5 * subFrac, u);
+              float ang = 0.5 * PI - TAU * prog;
+              vec3 layerLin = srgb2lin(gradientSRGB(dot(q, vec2(cos(ang), sin(ang)))));
+              col = (k == nSub) ? layerLin : mix(col, layerLin, smoothstep(aa, -aa, d));
+            }
+          }
+          return col;
+        }
+
+        vec3 evalPlatonicHexStack(vec2 p, float u, float aa, float rotOff) {
+          float fn = float(uNumCircles);
+          vec3 col = vec3(1.0);
+          vec2 pr = rot2(p, rotOff);
+          for (int k = MAX_CIRCLES; k >= 1; k--) {
+            if (k > uNumCircles) continue;
+            float r = float(k) / fn;
+            float d = (k == uNumCircles) ? (length(pr) - 1.0) : sdHexPoly(pr, 0.96 * r, 6);
+            if (k == uNumCircles || d < aa) {
+              vec2 q = pr / max(r, 1e-4);
+              float ang = circleAngle(k, u);
+              vec3 layerLin = srgb2lin(gradientSRGB(dot(q, vec2(cos(ang), sin(ang)))));
+              col = (k == uNumCircles) ? layerLin : mix(col, layerLin, smoothstep(aa, -aa, d));
+            }
+          }
+          return col;
+        }
+
+        vec3 renderSampleLin(vec2 p, float u, float px) {
+          float diskMask = smoothstep(px, -px, length(p) - 1.0);
+          if (diskMask <= 0.0) return vec3(0.0);
+
+          float aa = 0.75 * px;
+          float Rf = 0.20;
+
+          // Platonic Star-Hexagon optical background stacks
+          vec3 hexA = evalPlatonicHexStack(p, u, aa, 0.0);
+          vec3 hexB = evalPlatonicHexStack(p, u, aa, PI + PI / 6.0);
+          vec3 platonicLin = composePairLin(hexA, hexB);
+
+          if (uSymmetry == 2) {
+            return platonicLin * diskMask;
+          }
+
+          // Check which of the 13 tangent Fruit of Life circles contains p (at most 1 since mutually tangent!)
+          vec3 fruitLin = vec3(1.0);
+          float nodeMask = 0.0;
+
+          float d0 = length(p) - Rf;
+          if (d0 < aa) {
+            nodeMask = smoothstep(aa, -aa, d0);
+            fruitLin = mix(vec3(1.0), evalFruitNode(p, 0.0, 0.0, u, aa), nodeMask);
+          } else {
+            for (int j = 0; j < 6; j++) {
+              float a = float(j) * (PI / 3.0);
+              vec2 dir = vec2(sin(a), cos(a));
+
+              vec2 cIn = 0.40 * dir;
+              float dIn = length(p - cIn) - Rf;
+              if (dIn < aa) {
+                float m = smoothstep(aa, -aa, dIn);
+                fruitLin = mix(fruitLin, evalFruitNode(p - cIn, -a, 0.45, u, aa), m);
+                nodeMask = max(nodeMask, m);
+              }
+
+              vec2 cOut = 0.80 * dir;
+              float dOut = length(p - cOut) - Rf;
+              if (dOut < aa) {
+                float m = smoothstep(aa, -aa, dOut);
+                fruitLin = mix(fruitLin, evalFruitNode(p - cOut, PI - a, 0.90, u, aa), m);
+                nodeMask = max(nodeMask, m);
+              }
+            }
+          }
+
+          if (uBlendMode == 4) return mix(hexA, fruitLin, nodeMask) * diskMask;
+
+          vec3 combined = composePairLin(platonicLin, fruitLin);
+
+          // Prismatic crystal bevel along the 78 sacred chords of Metatron's Cube
+          if (uSymmetry == 0) {
+            float dLine = sdMetatron78(p);
+            float ribbon = smoothstep(0.0085 + aa, max(0.0085 - aa, 0.0), dLine);
+            float coreLine = smoothstep(0.0028 + aa, 0.0, dLine);
+            vec3 prismShift = evalPlatonicHexStack(-p, fract(u + 0.5), aa, PI / 6.0);
+            combined = mix(combined, mix(combined, prismShift, 0.55) + vec3(0.18) * coreLine, ribbon * 0.82);
+          }
+
+          return combined * diskMask;
+        }
+      `;
+
+      // =========================================================================
+      // SHADER 7: BINDU HORN-TORUS (Origin-Tangent Central Singularity Pencils)
+      // =========================================================================
+      const BODY_BINDU_VORTEX = `
+        // Dual of Shader 1: all N circles kiss at the central Bindu (0, 0) instead of outer poles!
+        vec3 evalOriginStack(vec2 p, float Rmax, float u, float aa, out float coverMask) {
+          float fn = float(uNumCircles);
+          vec3 col = vec3(1.0);
+          coverMask = 0.0;
+
+          for (int k = MAX_CIRCLES; k >= 1; k--) {
+            if (k > uNumCircles) continue;
+            float r = Rmax * float(k) / fn;
+            vec2 c = vec2(0.0, r);
+            float d = length(p - c) - r;
+
+            if (d < aa) {
+              vec2 q = (p - c) / r;
+              float ang = circleAngle(k, u);
+              vec3 layerLin = srgb2lin(gradientSRGB(dot(q, vec2(cos(ang), sin(ang)))));
+              float m = smoothstep(aa, -aa, d);
+              col = mix(col, layerLin, m);
+              if (k == uNumCircles) coverMask = m;
+            }
+          }
+          return col;
+        }
+
+        vec3 renderSampleLin(vec2 p, float u, float px) {
+          float diskMask = smoothstep(px, -px, length(p) - 1.0);
+          if (diskMask <= 0.0) return vec3(0.0);
+
+          float aa = 0.75 * px;
+          int lobes = (uSymmetry == 3 || uSymmetry == 4 || uSymmetry == 6 || uSymmetry == 8) ? uSymmetry : 4;
+          float fl = float(lobes);
+          // Exact radius ensuring M origin-tangent circles cover 100% of the unit disk
+          float Rmax = 0.5 / cos(PI / fl);
+
+          vec3 prodLin = vec3(1.0);
+          vec3 prodSRGB = vec3(1.0);
+          vec3 screenInv = vec3(1.0);
+          vec3 diffAcc = vec3(0.0);
+          vec3 firstLin = vec3(1.0);
+          float activeStacks = 0.0;
+
+          for (int m = 0; m < 8; m++) {
+            if (m >= lobes) continue;
+            vec2 pm = rot2(p, -float(m) * TAU / fl);
+            float cov;
+            vec3 st = evalOriginStack(pm, Rmax, u, aa, cov);
+            if (m == 0) firstLin = st;
+            prodLin *= st;
+            prodSRGB *= lin2srgb(st);
+            screenInv *= (vec3(1.0) - st);
+            diffAcc = abs(diffAcc - lin2srgb(st));
+            activeStacks += cov;
+          }
+
+          if (uBlendMode == 4) return firstLin * diskMask;
+
+          float optExp = min(1.0, 1.88 / max(activeStacks, 1.0));
+          vec3 outLin;
+          if (uBlendMode == 0) {
+            outLin = pow(clamp(prodLin, 0.0, 1.0), vec3(optExp));
+          } else if (uBlendMode == 1) {
+            outLin = srgb2lin(pow(clamp(prodSRGB, 0.0, 1.0), vec3(optExp)));
+          } else if (uBlendMode == 2) {
+            outLin = 1.0 - pow(clamp(screenInv, 0.0, 1.0), vec3(optExp));
+          } else {
+            outLin = srgb2lin(clamp(diffAcc, 0.0, 1.0));
+          }
+          return outLin * diskMask;
+        }
+      `;
+
+      // =========================================================================
+      // SHADER REGISTRY & METADATA
+      // =========================================================================
+      const ICONS = {
+        dyad: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="7.2" r="4.8"/><circle cx="12" cy="16.8" r="4.8"/></svg>`,
+        sphere3d: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><ellipse cx="12" cy="12" rx="9.5" ry="3.8"/><path d="M12 2.5a9.5 9.5 0 0 1 0 19"/><circle cx="12" cy="7.5" r="4.5"/></svg>`,
+        flower: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="7.4" r="4.6"/><circle cx="12" cy="16.6" r="4.6"/><circle cx="16" cy="9.7" r="4.6"/><circle cx="8" cy="14.3" r="4.6"/></svg>`,
+        yantra: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><polygon points="12,4 19,16.5 5,16.5"/><polygon points="12,20 19,7.5 5,7.5"/></svg>`,
+        triquetra: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="7.5" r="5"/><circle cx="8.1" cy="14.2" r="5"/><circle cx="15.9" cy="14.2" r="5"/></svg>`,
+        metatron: `<svg viewBox="0 0 24 24"><polygon points="12,2.8 20,7.4 20,16.6 12,21.2 4,16.6 4,7.4"/><polygon points="12,2.8 20,16.6 4,16.6"/><polygon points="12,21.2 20,7.4 4,7.4"/><circle cx="12" cy="12" r="2.2"/></svg>`,
+        bindu: `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="7.3" r="4.7"/><circle cx="12" cy="16.7" r="4.7"/><circle cx="7.3" cy="12" r="4.7"/><circle cx="16.7" cy="12" r="4.7"/></svg>`
+      };
+
+      const SHADERS = [
+        {
+          id: "tangent-dyad",
+          name: "Polar Tangent Dyad",
+          subtitle: "Opposing North/South Tangent Pencils (Original)",
+          badge: "2D",
+          is3D: false,
+          icon: ICONS.dyad,
+          circlesLabel: "Circles per Stack (N)",
+          fragSrc: COMMON_GLSL + BODY_TANGENT_DYAD + MAIN_2D_GLSL,
+          bodySrc: BODY_TANGENT_DYAD,
+          defaults: { phase: 0.391, numCircles: 10, duration: 16.0, stagger: 0.21, blendMode: 0, symmetry: 0 },
+          symmetryOptions: null
+        },
+        {
+          id: "tangent-3d",
+          name: "Polar Tangent Spheres 3D",
+          subtitle: "Interactive 3D Depiction of Nested Tangent Stacks",
+          badge: "3D",
+          is3D: true,
+          icon: ICONS.sphere3d,
+          circlesLabel: "Spheres per Pole (N)",
+          fragSrc: COMMON_GLSL + BODY_TANGENT_3D,
+          bodySrc: BODY_TANGENT_3D,
+          defaults: {
+            phase: 0.391, numCircles: 10, duration: 16.0, stagger: 0.21, blendMode: 0, symmetry: 0,
+            camYaw: 0.46, camPitch: 0.24, camZoom: 2.72, autoOrbit: true
+          },
+          symmetryLabel: "3D Depiction Form",
+          symmetryOptions: [
+            { value: 0, label: "Cutaway Geode Sphere (Cross-Section)" },
+            { value: 1, label: "Translucent Stained-Glass Spheres" },
+            { value: 2, label: "Terraced Kinetic Relief Astrolabe" },
+            { value: 3, label: "3D Villarceau Horn Torus" }
+          ]
+        },
+        {
+          id: "flower-of-life",
+          name: "Flower of Life",
+          subtitle: "19-Circle Hexagonal Sacred Lattice & Sub-Petals",
+          badge: "2D",
+          is3D: false,
+          icon: ICONS.flower,
+          circlesLabel: "Nested Sub-Shells",
+          fragSrc: COMMON_GLSL + BODY_FLOWER_OF_LIFE + MAIN_2D_GLSL,
+          bodySrc: BODY_FLOWER_OF_LIFE,
+          defaults: { phase: 0.340, numCircles: 10, duration: 18.0, stagger: 0.28, blendMode: 0, symmetry: 0 },
+          symmetryLabel: "Sacred Lattice Mode",
+          symmetryOptions: [
+            { value: 0, label: "19-Circle Flower of Life (Classic)" },
+            { value: 1, label: "7-Circle Seed of Life" },
+            { value: 2, label: "Deep Vesica Honeycomb" }
+          ]
+        },
+        {
+          id: "sri-yantra",
+          name: "Sri Yantra / Shatkona",
+          subtitle: "Counter-Rotating Interlocking Sacred Star Polygons",
+          badge: "2D",
+          is3D: false,
+          icon: ICONS.yantra,
+          circlesLabel: "Nested Polygons (N)",
+          fragSrc: COMMON_GLSL + BODY_SRI_YANTRA + MAIN_2D_GLSL,
+          bodySrc: BODY_SRI_YANTRA,
+          defaults: { phase: 0.415, numCircles: 11, duration: 16.0, stagger: 0.24, blendMode: 0, symmetry: 3 },
+          symmetryLabel: "Sacred Polygon Symmetry",
+          symmetryOptions: [
+            { value: 3, label: "Sri Yantra / 6-Point Shatkona (Triangles)" },
+            { value: 4, label: "8-Point Lakshmi Octagram (Squares)" },
+            { value: 5, label: "10-Point Sacred Decagram (Pentagons)" },
+            { value: 6, label: "12-Point Temple Dodecagram (Hexagons)" }
+          ]
+        },
+        {
+          id: "triquetra-rosette",
+          name: "Triquetra & Lotus Rosette",
+          subtitle: "Multi-Pole Radial Tangent Pencils in Optical Multiply",
+          badge: "2D",
+          is3D: false,
+          icon: ICONS.triquetra,
+          circlesLabel: "Circles per Pole (N)",
+          fragSrc: COMMON_GLSL + BODY_TRIQUETRA_ROSETTE + MAIN_2D_GLSL,
+          bodySrc: BODY_TRIQUETRA_ROSETTE,
+          defaults: { phase: 0.375, numCircles: 9, duration: 16.0, stagger: 0.23, blendMode: 0, symmetry: 3 },
+          symmetryLabel: "Radial Pole Symmetry",
+          symmetryOptions: [
+            { value: 3, label: "3-Fold Trinity / Triquetra" },
+            { value: 4, label: "4-Fold Cardinal Compass" },
+            { value: 5, label: "5-Fold Pentagram Lotus" },
+            { value: 6, label: "6-Fold Hexagonal Mandala" }
+          ]
+        },
+        {
+          id: "metatron-cube",
+          name: "Metatron's Cube",
+          subtitle: "13-Node Fruit of Life & 78-Line Platonic Prisms",
+          badge: "2D",
+          is3D: false,
+          icon: ICONS.metatron,
+          circlesLabel: "Harmonic Depth (N)",
+          fragSrc: COMMON_GLSL + BODY_METATRON_CUBE + MAIN_2D_GLSL,
+          bodySrc: BODY_METATRON_CUBE,
+          defaults: { phase: 0.360, numCircles: 10, duration: 18.0, stagger: 0.25, blendMode: 0, symmetry: 0 },
+          symmetryLabel: "Platonic Layer Mode",
+          symmetryOptions: [
+            { value: 0, label: "Full Metatron's Cube (78 Chords + 13 Nodes)" },
+            { value: 1, label: "13-Circle Fruit of Life + Hexagons" },
+            { value: 2, label: "Pure Platonic Dodecagram Shells" }
+          ]
+        },
+        {
+          id: "bindu-vortex",
+          name: "Bindu Horn-Torus",
+          subtitle: "Origin-Tangent Pencils Kissing at the Sacred Center",
+          badge: "2D",
+          is3D: false,
+          icon: ICONS.bindu,
+          circlesLabel: "Rings per Lobe (N)",
+          fragSrc: COMMON_GLSL + BODY_BINDU_VORTEX + MAIN_2D_GLSL,
+          bodySrc: BODY_BINDU_VORTEX,
+          defaults: { phase: 0.420, numCircles: 10, duration: 16.0, stagger: 0.22, blendMode: 0, symmetry: 4 },
+          symmetryLabel: "Central Lobe Symmetry",
+          symmetryOptions: [
+            { value: 4, label: "4-Lobe Orthogonal Horn Torus" },
+            { value: 3, label: "3-Lobe Trinity Vortex" },
+            { value: 6, label: "6-Lobe Torus Eye" },
+            { value: 8, label: "8-Lobe Dharmachakra Lotus" }
+          ]
+        }
+      ];
+
+      // =========================================================================
+      // WEBGL PROGRAM COMPILATION & CACHING
+      // =========================================================================
+      function compileShader(type, src) {
+        const sh = gl.createShader(type);
+        gl.shaderSource(sh, src);
+        gl.compileShader(sh);
+        if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+          throw new Error(gl.getShaderInfoLog(sh));
+        }
+        return sh;
+      }
+
+      const vertShader = compileShader(gl.VERTEX_SHADER, VERT_SRC);
+      const quadBuf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+
+      const compiledPrograms = new Map();
+
+      function getProgramEntry(shaderDef) {
+        if (compiledPrograms.has(shaderDef.id)) {
+          return compiledPrograms.get(shaderDef.id);
+        }
+        const prog = gl.createProgram();
+        gl.attachShader(prog, vertShader);
+        gl.attachShader(prog, compileShader(gl.FRAGMENT_SHADER, shaderDef.fragSrc));
+        gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+          throw new Error(`Link error in ${shaderDef.id}: ` + gl.getProgramInfoLog(prog));
+        }
+        const entry = {
+          prog,
+          aPos: gl.getAttribLocation(prog, "aPos"),
+          uResolution: gl.getUniformLocation(prog, "uResolution"),
+          uPhase: gl.getUniformLocation(prog, "uPhase"),
+          uNumCircles: gl.getUniformLocation(prog, "uNumCircles"),
+          uStagger: gl.getUniformLocation(prog, "uStagger"),
+          uBlendMode: gl.getUniformLocation(prog, "uBlendMode"),
+          uSymmetry: gl.getUniformLocation(prog, "uSymmetry"),
+          uCamRot: gl.getUniformLocation(prog, "uCamRot"),
+          uCamZoom: gl.getUniformLocation(prog, "uCamZoom"),
+          uAA: gl.getUniformLocation(prog, "uAA")
+        };
+        compiledPrograms.set(shaderDef.id, entry);
+        return entry;
+      }
+
+      // Pre-compile all shaders up front so switching is instantaneous
+      SHADERS.forEach((s) => getProgramEntry(s));
+
+      // =========================================================================
+      // APPLICATION STATE
+      // =========================================================================
+      let activeIdx = 0;
+      let playing = true;
+      const shaderStates = SHADERS.map((s) => ({ ...s.defaults }));
+
+      function curShader() { return SHADERS[activeIdx]; }
+      function curState()  { return shaderStates[activeIdx]; }
+
+      // UI Elements
+      const switcherEl   = document.getElementById("shader-switcher");
+      const triggerBtn   = document.getElementById("shader-trigger");
+      const menuEl       = document.getElementById("shader-menu");
+      const activeGlyph  = document.getElementById("active-glyph");
+      const activeName   = document.getElementById("active-name");
+      const activeBadge  = document.getElementById("active-badge");
+      const btnPrev      = document.getElementById("btn-prev");
+      const btnNext      = document.getElementById("btn-next");
+      const orbitPill    = document.getElementById("orbit-pill");
+      const btnPillReset = document.getElementById("btn-pill-cam-reset");
+
+      const panel        = document.getElementById("panel");
+      const panelTitle   = document.getElementById("panel-title");
+      const panelSub     = document.getElementById("panel-sub");
+      const selShader    = document.getElementById("sel-shader");
+      const grpSymmetry  = document.getElementById("grp-symmetry");
+      const lblSymmetry  = document.getElementById("lbl-symmetry");
+      const selSymmetry  = document.getElementById("sel-symmetry");
+      const grp3DCam     = document.getElementById("grp-3d-cam");
+      const btnAutoOrbit = document.getElementById("btn-auto-orbit");
+      const btnResetCam  = document.getElementById("btn-reset-cam");
+      const lblCircles   = document.getElementById("lbl-circles");
+
+      const hudToggle    = document.getElementById("hud-toggle");
+      const hudLabel     = document.getElementById("hud-label");
+      const toastEl      = document.getElementById("toast");
+      const rngPhase     = document.getElementById("rng-phase");
+      const rngCircles   = document.getElementById("rng-circles");
+      const rngDur       = document.getElementById("rng-duration");
+      const rngStagger   = document.getElementById("rng-stagger");
+      const selBlend     = document.getElementById("sel-blend");
+      const valPhase     = document.getElementById("val-phase");
+      const valCircles   = document.getElementById("val-circles");
+      const valDur       = document.getElementById("val-duration");
+      const valStagger   = document.getElementById("val-stagger");
+      const btnPlay      = document.getElementById("btn-play");
+      const btnFs        = document.getElementById("btn-fs");
+      const btnReset     = document.getElementById("btn-reset");
+      const btnCopy      = document.getElementById("btn-copy-glsl");
+      const btnPng       = document.getElementById("btn-png");
+      const btnRecord    = document.getElementById("btn-record");
+
+      let toastTimer = null;
+      function showToast(msg) {
+        toastEl.textContent = msg;
+        toastEl.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2200);
+      }
+
+      // Populate top dropdown menu & drawer select
+      function buildSwitcherDOM() {
+        menuEl.innerHTML = "";
+        selShader.innerHTML = "";
+
+        SHADERS.forEach((s, idx) => {
+          const item = document.createElement("button");
+          item.className = `shader-item${s.is3D ? " is-3d" : ""}${idx === activeIdx ? " active" : ""}`;
+          item.setAttribute("role", "option");
+          item.dataset.idx = idx;
+          item.innerHTML = `
+            <span class="item-icon">${s.icon}</span>
+            <span class="item-body">
+              <span class="item-title-row">
+                <span>${s.name}</span>
+                <span class="badge ${s.is3D ? "b-3d" : "b-2d"}">${s.badge}</span>
+              </span>
+              <div class="item-sub">${s.subtitle}</div>
+            </span>
+            <span class="item-key">${idx + 1}</span>
+          `;
+          item.addEventListener("click", () => {
+            selectShader(idx);
+            closeDropdown();
+          });
+          menuEl.appendChild(item);
+
+          const opt = document.createElement("option");
+          opt.value = idx;
+          opt.textContent = `${idx + 1}. ${s.name} (${s.badge})`;
+          selShader.appendChild(opt);
+        });
+      }
+
+      function openDropdown() {
+        switcherEl.classList.add("open");
+        menuEl.classList.add("open");
+        triggerBtn.setAttribute("aria-expanded", "true");
+      }
+
+      function closeDropdown() {
+        switcherEl.classList.remove("open");
+        menuEl.classList.remove("open");
+        triggerBtn.setAttribute("aria-expanded", "false");
+      }
+
+      triggerBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (menuEl.classList.contains("open")) closeDropdown();
+        else openDropdown();
+      });
+
+      window.addEventListener("pointerdown", (e) => {
+        if (!menuEl.contains(e.target) && !switcherEl.contains(e.target)) {
+          closeDropdown();
+        }
+      });
+
+      btnPrev.addEventListener("click", () => {
+        selectShader((activeIdx - 1 + SHADERS.length) % SHADERS.length);
+      });
+
+      btnNext.addEventListener("click", () => {
+        selectShader((activeIdx + 1) % SHADERS.length);
+      });
+
+      selShader.addEventListener("change", () => {
+        selectShader(parseInt(selShader.value, 10));
+      });
+
+      function selectShader(idx) {
+        if (idx < 0 || idx >= SHADERS.length) return;
+        activeIdx = idx;
+        syncUI();
+      }
+
+      function syncUI() {
+        const s = curShader();
+        const st = curState();
+
+        // Top bar
+        activeGlyph.innerHTML = s.icon;
+        activeName.textContent = s.name;
+        activeBadge.textContent = s.badge;
+        activeBadge.className = `badge ${s.is3D ? "b-3d" : "b-2d"}`;
+
+        menuEl.querySelectorAll(".shader-item").forEach((el, idx) => {
+          el.classList.toggle("active", idx === activeIdx);
+        });
+
+        // Canvas cursor & 3D pill
+        canvas.classList.toggle("interactive-3d", s.is3D);
+        orbitPill.classList.toggle("visible", s.is3D);
+
+        // Drawer header & shader select
+        panelTitle.textContent = s.name;
+        panelSub.textContent = s.subtitle;
+        selShader.value = activeIdx;
+        lblCircles.textContent = s.circlesLabel;
+
+        // Symmetry / 3D Form options
+        if (s.symmetryOptions) {
+          grpSymmetry.classList.remove("hidden-group");
+          lblSymmetry.textContent = s.symmetryLabel;
+          selSymmetry.innerHTML = "";
+          s.symmetryOptions.forEach((optObj) => {
+            const o = document.createElement("option");
+            o.value = optObj.value;
+            o.textContent = optObj.label;
+            selSymmetry.appendChild(o);
+          });
+          selSymmetry.value = st.symmetry;
+        } else {
+          grpSymmetry.classList.add("hidden-group");
+        }
+
+        // 3D Camera controls
+        if (s.is3D) {
+          grp3DCam.classList.remove("hidden-group");
+          btnAutoOrbit.textContent = `Auto-Orbit: ${st.autoOrbit ? "On" : "Off"}`;
+          btnAutoOrbit.classList.toggle("active-toggle", !!st.autoOrbit);
+        } else {
+          grp3DCam.classList.add("hidden-group");
+        }
+
+        // Standard sliders
+        rngPhase.value = st.phase.toFixed(4);
+        valPhase.textContent = `${(st.phase * 100).toFixed(1)}%`;
+        rngCircles.value = st.numCircles;
+        valCircles.textContent = st.numCircles;
+        rngDur.value = st.duration;
+        valDur.textContent = `${st.duration.toFixed(1)}s`;
+        rngStagger.value = st.stagger;
+        valStagger.textContent = `${Math.round(st.stagger * 100)}%`;
+        selBlend.value = st.blendMode;
+        btnPlay.textContent = playing ? "Pause" : "Play";
+      }
+
+      // =========================================================================
+      // 3D INTERACTIVE CAMERA ORBIT & ZOOM
+      // =========================================================================
+      let dragging3D = false;
+      let lastPointerX = 0;
+      let lastPointerY = 0;
+
+      canvas.addEventListener("pointerdown", (e) => {
+        if (!curShader().is3D) return;
+        dragging3D = true;
+        lastPointerX = e.clientX;
+        lastPointerY = e.clientY;
+        canvas.classList.add("dragging");
+        canvas.setPointerCapture?.(e.pointerId);
+      });
+
+      window.addEventListener("pointermove", (e) => {
+        if (!dragging3D || !curShader().is3D) return;
+        const dx = e.clientX - lastPointerX;
+        const dy = e.clientY - lastPointerY;
+        lastPointerX = e.clientX;
+        lastPointerY = e.clientY;
+
+        const st = curState();
+        st.camYaw = (st.camYaw || 0) - dx * 0.0065;
+        st.camPitch = Math.max(-1.42, Math.min(1.42, (st.camPitch || 0) + dy * 0.0065));
+      });
+
+      window.addEventListener("pointerup", () => {
+        if (dragging3D) {
+          dragging3D = false;
+          canvas.classList.remove("dragging");
+        }
+      });
+
+      canvas.addEventListener("wheel", (e) => {
+        if (!curShader().is3D) return;
+        e.preventDefault();
+        const st = curState();
+        st.camZoom = Math.max(1.75, Math.min(4.8, (st.camZoom || 2.72) + e.deltaY * 0.0018));
+      }, { passive: false });
+
+      function reset3DCamera() {
+        const s = curShader();
+        const st = curState();
+        if (!s.is3D) return;
+        st.camYaw = s.defaults.camYaw;
+        st.camPitch = s.defaults.camPitch;
+        st.camZoom = s.defaults.camZoom;
+        st.autoOrbit = true;
+        syncUI();
+        showToast("Reset 3D camera view");
+      }
+
+      btnAutoOrbit.addEventListener("click", () => {
+        const st = curState();
+        st.autoOrbit = !st.autoOrbit;
+        syncUI();
+      });
+
+      btnResetCam.addEventListener("click", reset3DCamera);
+      btnPillReset.addEventListener("click", reset3DCamera);
+
+      // =========================================================================
+      // RESIZE & RENDER LOOP
+      // =========================================================================
+      let customRenderSize = null;
+      function resize() {
+        if (customRenderSize) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = Math.max(1, Math.floor(window.innerWidth * dpr));
+        const h = Math.max(1, Math.floor(window.innerHeight * dpr));
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+        gl.viewport(0, 0, canvas.width, canvas.height);
+      }
+      window.addEventListener("resize", resize);
+      resize();
+
+      function renderFrame(phaseOverride, forceHighAA) {
+        const s = curShader();
+        const st = curState();
+        const entry = getProgramEntry(s);
+
+        gl.useProgram(entry.prog);
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+        gl.enableVertexAttribArray(entry.aPos);
+        gl.vertexAttribPointer(entry.aPos, 2, gl.FLOAT, false, 0, 0);
+
+        const p = phaseOverride !== undefined ? phaseOverride : st.phase;
+        const raymarched3D = s.is3D && (st.symmetry === 2 || st.symmetry === 3);
+        const aaSamples = forceHighAA ? 4 : (raymarched3D ? 2 : 4);
+
+        gl.uniform2f(entry.uResolution, canvas.width, canvas.height);
+        gl.uniform1f(entry.uPhase, ((p % 1) + 1) % 1);
+        gl.uniform1i(entry.uNumCircles, st.numCircles);
+        gl.uniform1f(entry.uStagger, st.stagger);
+        gl.uniform1i(entry.uBlendMode, st.blendMode);
+        gl.uniform1i(entry.uSymmetry, st.symmetry || 0);
+        gl.uniform2f(entry.uCamRot, st.camYaw || 0.0, st.camPitch || 0.0);
+        gl.uniform1f(entry.uCamZoom, st.camZoom || 2.72);
+        gl.uniform1i(entry.uAA, aaSamples);
+
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+      }
+
+      let lastTs = performance.now();
+      let isRecording = false;
+
+      function tick(ts) {
+        const dt = Math.min((ts - lastTs) / 1000, 0.1);
+        lastTs = ts;
+        const s = curShader();
+        const st = curState();
+
+        if (playing && !isRecording) {
+          st.phase = (st.phase + dt / st.duration) % 1.0;
+          if (s.is3D && st.autoOrbit && !dragging3D) {
+            // Gentle harmonic oscillation for Cutaway so opening stays framed; full orbit for symmetric 3D forms
+            if (st.symmetry === 0) {
+              st.camYaw = 0.46 + 0.34 * Math.sin(ts * 0.00045);
+              st.camPitch = 0.24 + 0.12 * Math.cos(ts * 0.00033);
+            } else {
+              st.camYaw = ((st.camYaw || 0) + dt * 0.28) % (Math.PI * 2);
+            }
+          }
+          if (!panel.classList.contains("hidden")) {
+            rngPhase.value = st.phase.toFixed(4);
+            valPhase.textContent = `${(st.phase * 100).toFixed(1)}%`;
+          }
+        }
+        if (!isRecording) {
+          renderFrame();
+        }
+        requestAnimationFrame(tick);
+      }
+
+      buildSwitcherDOM();
+      syncUI();
+      requestAnimationFrame(tick);
+
+      // =========================================================================
+      // CONTROLS WIRING
+      // =========================================================================
+      hudToggle.addEventListener("click", () => {
+        panel.classList.toggle("hidden");
+        if (!panel.classList.contains("hidden")) syncUI();
+      });
+
+      selSymmetry.addEventListener("change", () => {
+        curState().symmetry = parseInt(selSymmetry.value, 10);
+      });
+
+      rngPhase.addEventListener("input", () => {
+        const st = curState();
+        st.phase = parseFloat(rngPhase.value);
+        valPhase.textContent = `${(st.phase * 100).toFixed(1)}%`;
+      });
+
+      document.querySelectorAll("[data-phase]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          curState().phase = parseFloat(btn.dataset.phase);
+          syncUI();
+        });
+      });
+
+      rngCircles.addEventListener("input", () => {
+        const st = curState();
+        st.numCircles = parseInt(rngCircles.value, 10);
+        valCircles.textContent = st.numCircles;
+      });
+
+      rngDur.addEventListener("input", () => {
+        const st = curState();
+        st.duration = parseFloat(rngDur.value);
+        valDur.textContent = `${st.duration.toFixed(1)}s`;
+      });
+
+      rngStagger.addEventListener("input", () => {
+        const st = curState();
+        st.stagger = parseFloat(rngStagger.value);
+        valStagger.textContent = `${Math.round(st.stagger * 100)}%`;
+      });
+
+      selBlend.addEventListener("change", () => {
+        curState().blendMode = parseInt(selBlend.value, 10);
+      });
+
+      btnPlay.addEventListener("click", () => {
+        playing = !playing;
+        syncUI();
+      });
+
+      btnFs.addEventListener("click", () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen?.();
+        } else {
+          document.exitFullscreen?.();
+        }
+      });
+
+      btnReset.addEventListener("click", () => {
+        const s = curShader();
+        Object.assign(curState(), s.defaults);
+        syncUI();
+        showToast(`Reset ${s.name} to defaults`);
+      });
+
+      // =========================================================================
+      // DYNAMIC SHADERTOY EXPORTER (Supports ALL 7 Shaders!)
+      // =========================================================================
+      function buildShadertoyCode() {
+        const s = curShader();
+        const st = curState();
+
+        const header = `// ${s.name} — ${s.subtitle}
+// Sacred Geometric Optical Loop Suite (Linear-RGB Optical Filter Blending)
+// Paste directly into Shadertoy's "Image" tab (https://www.shadertoy.com/new)
+${s.is3D ? "// Drag mouse in Shadertoy to orbit the 3D view!\n" : ""}
+const float LOOP_DURATION = ${st.duration.toFixed(1)};
+const float PHASE_OFFSET  = ${st.phase.toFixed(3)};
+const int   uNumCircles   = ${st.numCircles};
+const float uStagger      = ${st.stagger.toFixed(3)};
+const int   uBlendMode    = ${st.blendMode};
+const int   uSymmetry     = ${st.symmetry || 0};
+const int   MAX_CIRCLES   = 24;
+const float PI            = 3.14159265359;
+const float TAU           = 6.28318530718;
+
+vec3 srgb2lin(vec3 c) {
+  c = clamp(c, 0.0, 1.0);
+  vec3 lo = c / 12.92;
+  vec3 hi = pow((c + 0.055) / 1.055, vec3(2.4));
+  return mix(lo, hi, step(vec3(0.04045), c));
+}
+
+vec3 lin2srgb(vec3 c) {
+  c = clamp(c, 0.0, 1.0);
+  vec3 lo = 12.92 * c;
+  vec3 hi = 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055;
+  return mix(lo, hi, step(vec3(0.0031308), c));
+}
+
+vec3 gradientSRGB(float s) {
+  float t = clamp(0.5 * s + 0.5, 0.0, 1.0);
+  vec3 c0 = vec3(1.000, 1.000, 1.000);
+  vec3 c1 = vec3(0.341, 0.679, 0.720);
+  vec3 c2 = vec3(0.443, 0.294, 0.551);
+  vec3 c3 = vec3(0.758, 0.240, 0.340);
+  vec3 c4 = vec3(0.887, 0.513, 0.294);
+  vec3 c5 = vec3(0.856, 0.840, 0.427);
+  vec3 c6 = vec3(1.000, 1.000, 1.000);
+  if (t < 0.1441) return mix(c0, c1, (t - 0.0000) / (0.1441 - 0.0000));
+  if (t < 0.3130) return mix(c1, c2, (t - 0.1441) / (0.3130 - 0.1441));
+  if (t < 0.4632) return mix(c2, c3, (t - 0.3130) / (0.4632 - 0.3130));
+  if (t < 0.6045) return mix(c3, c4, (t - 0.4632) / (0.6045 - 0.4632));
+  if (t < 0.7531) return mix(c4, c5, (t - 0.6045) / (0.7531 - 0.6045));
+  return mix(c5, c6, clamp((t - 0.7531) / (0.9443 - 0.7531), 0.0, 1.0));
+}
+
+float staggeredProg(float staggerFrac, float u) {
+  float u0 = uStagger * clamp(staggerFrac, 0.0, 1.0);
+  return clamp((u - u0) / max(1.0 - u0, 1e-4), 0.0, 1.0);
+}
+
+float circleAngle(int k, float u) {
+  float fk = float(k);
+  float fn = float(uNumCircles);
+  float frac = (uNumCircles > 1) ? (fn - fk) / (fn - 1.0) : 0.0;
+  return 0.5 * PI - TAU * staggeredProg(frac, u);
+}
+
+vec2 rot2(vec2 p, float a) {
+  float c = cos(a), s = sin(a);
+  return vec2(c * p.x - s * p.y, s * p.x + c * p.y);
+}
+
+vec3 composePairLin(vec3 topLin, vec3 botLin) {
+  if (uBlendMode == 4) return topLin;
+  if (uBlendMode == 0) return topLin * botLin;
+  if (uBlendMode == 1) return srgb2lin(lin2srgb(topLin) * lin2srgb(botLin));
+  if (uBlendMode == 2) return 1.0 - (1.0 - topLin) * (1.0 - botLin);
+  return srgb2lin(abs(lin2srgb(topLin) - lin2srgb(botLin)));
+}
+`;
+
+        if (!s.is3D) {
+          return header + s.bodySrc + `
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+  float radiusPx = 0.485 * min(iResolution.x, iResolution.y);
+  float px = 1.0 / radiusPx;
+  float u = fract(iTime / LOOP_DURATION + PHASE_OFFSET);
+  vec2 center = 0.5 * iResolution.xy;
+  vec3 acc = vec3(0.0);
+  acc += renderSampleLin((fragCoord + vec2(-0.375, -0.125) - center) / radiusPx, u, 0.5 * px);
+  acc += renderSampleLin((fragCoord + vec2( 0.125, -0.375) - center) / radiusPx, u, 0.5 * px);
+  acc += renderSampleLin((fragCoord + vec2( 0.375,  0.125) - center) / radiusPx, u, 0.5 * px);
+  acc += renderSampleLin((fragCoord + vec2(-0.125,  0.375) - center) / radiusPx, u, 0.5 * px);
+  fragColor = vec4(lin2srgb(acc * 0.25), 1.0);
+}
+`;
+        } else {
+          // Strip WebGL main() from BODY_TANGENT_3D and emit Shadertoy mainImage with iMouse orbit
+          const core3D = s.bodySrc.split("vec3 traceSample3D")[0];
+          return header + core3D + `
+vec3 traceSampleST(vec2 fragCoord, vec2 subOffset, vec2 res, float u, vec2 camRot, float camZoom) {
+  float minDim = min(res.x, res.y);
+  float px = 2.0 / minDim;
+  vec2 uv = (fragCoord + subOffset - 0.5 * res) / (0.5 * minDim);
+  vec3 ro = camZoom * vec3(cos(camRot.y) * sin(camRot.x), sin(camRot.y), cos(camRot.y) * cos(camRot.x));
+  vec3 fwd = normalize(-ro);
+  vec3 right = normalize(cross(fwd, vec3(0.0, 1.0, 0.0)));
+  vec3 up = cross(right, fwd);
+  vec3 rd = normalize(fwd * 2.45 + right * uv.x + up * uv.y);
+  if (uSymmetry == 1) return renderGlassSpheres(ro, rd, u, px);
+  if (uSymmetry == 2) return renderReliefAstrolabe(ro, rd, u, px);
+  if (uSymmetry == 3) return renderVillarceauTorus(ro, rd, u, px);
+  return renderCutawaySphere(ro, rd, u, px);
+}
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+  float u = fract(iTime / LOOP_DURATION + PHASE_OFFSET);
+  vec2 camRot = vec2(${(st.camYaw || 0.46).toFixed(3)} + 0.32 * sin(iTime * 0.4), ${(st.camPitch || 0.24).toFixed(3)});
+  if (iMouse.z > 0.0) {
+    vec2 m = (iMouse.xy / iResolution.xy) * 2.0 - 1.0;
+    camRot = vec2(-m.x * PI, clamp(m.y * 1.3, -1.4, 1.4));
+  }
+  vec3 acc = vec3(0.0);
+  acc += traceSampleST(fragCoord, vec2(-0.25, -0.25), iResolution.xy, u, camRot, ${(st.camZoom || 2.72).toFixed(2)});
+  acc += traceSampleST(fragCoord, vec2( 0.25,  0.25), iResolution.xy, u, camRot, ${(st.camZoom || 2.72).toFixed(2)});
+  fragColor = vec4(lin2srgb(acc * 0.5), 1.0);
+}
+`;
+        }
+      }
+
+      btnCopy.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(buildShadertoyCode());
+          showToast(`Copied ${curShader().name} Shadertoy GLSL`);
+        } catch {
+          showToast("Clipboard blocked by browser");
+        }
+      });
+
+      // High-res 2048x2048 PNG snapshot
+      btnPng.addEventListener("click", () => {
+        const s = curShader();
+        const st = curState();
+        const prevW = canvas.width, prevH = canvas.height;
+        customRenderSize = 2048;
+        canvas.width = 2048;
+        canvas.height = 2048;
+        gl.viewport(0, 0, 2048, 2048);
+        renderFrame(undefined, true);
+        canvas.toBlob((blob) => {
+          customRenderSize = null;
+          canvas.width = prevW;
+          canvas.height = prevH;
+          gl.viewport(0, 0, prevW, prevH);
+          renderFrame();
+          if (!blob) return;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${s.id}-${Math.round(st.phase * 1000)}.png`;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          showToast(`Saved 2048x2048 PNG (${s.name})`);
+        }, "image/png");
+      });
+
+      // Record one exact seamless WebM loop
+      btnRecord.addEventListener("click", () => {
+        if (isRecording) return;
+        if (typeof MediaRecorder === "undefined" || !canvas.captureStream) {
+          showToast("WebM recording not supported in this browser");
+          return;
+        }
+        const mime = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]
+          .find((m) => MediaRecorder.isTypeSupported(m));
+        if (!mime) {
+          showToast("No supported WebM codec found");
+          return;
+        }
+
+        const s = curShader();
+        const st = curState();
+        isRecording = true;
+        hudToggle.classList.add("recording");
+        hudLabel.textContent = "Recording...";
+        btnRecord.disabled = true;
+        btnRecord.textContent = "Recording 1 full cycle...";
+
+        const prevW = canvas.width, prevH = canvas.height;
+        customRenderSize = 1080;
+        canvas.width = 1080;
+        canvas.height = 1080;
+        gl.viewport(0, 0, 1080, 1080);
+
+        const stream = canvas.captureStream(60);
+        const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 14_000_000 });
+        const chunks = [];
+        rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+        rec.onstop = () => {
+          isRecording = false;
+          customRenderSize = null;
+          canvas.width = prevW;
+          canvas.height = prevH;
+          gl.viewport(0, 0, prevW, prevH);
+          hudToggle.classList.remove("recording");
+          hudLabel.textContent = "Controls";
+          btnRecord.disabled = false;
+          btnRecord.textContent = "Record 1 Seamless Loop (.webm)";
+
+          const blob = new Blob(chunks, { type: mime });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${s.id}-${st.duration}s-loop.webm`;
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+          showToast(`Downloaded seamless WebM (${s.name})`);
+        };
+
+        const startPhase = st.phase;
+        const baseYaw = st.camYaw || 0.46;
+        const startTs = performance.now();
+        const durMs = st.duration * 1000;
+        rec.start();
+
+        function recTick(now) {
+          const elapsed = now - startTs;
+          const frac = Math.min(elapsed / durMs, 1.0);
+          st.phase = (startPhase + frac) % 1.0;
+          if (s.is3D && st.autoOrbit) {
+            if (st.symmetry === 0) {
+              st.camYaw = baseYaw + 0.30 * Math.sin(frac * Math.PI * 2);
+            } else {
+              st.camYaw = baseYaw + frac * Math.PI * 2;
+            }
+          }
+          renderFrame(st.phase);
+          if (elapsed < durMs) {
+            requestAnimationFrame(recTick);
+          } else {
+            st.camYaw = baseYaw;
+            rec.stop();
+          }
+        }
+        requestAnimationFrame(recTick);
+      });
+
+      // Keyboard shortcuts
+      window.addEventListener("keydown", (e) => {
+        if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+        if (e.code === "Escape") {
+          closeDropdown();
+        } else if (e.code === "Space") {
+          e.preventDefault();
+          playing = !playing;
+          syncUI();
+        } else if (e.key === "[") {
+          selectShader((activeIdx - 1 + SHADERS.length) % SHADERS.length);
+        } else if (e.key === "]") {
+          selectShader((activeIdx + 1) % SHADERS.length);
+        } else if (e.key >= "1" && e.key <= String(SHADERS.length)) {
+          selectShader(parseInt(e.key, 10) - 1);
+        } else if (e.key === "h" || e.key === "H") {
+          document.body.classList.toggle("pure-mode");
+        } else if (e.key === "f" || e.key === "F") {
+          btnFs.click();
+        } else if (e.key === "r" || e.key === "R") {
+          btnReset.click();
+        }
+      });
+
+      // Expose testing & automation API on window
+      window.__LOOP_API__ = {
+        getShaders: () => SHADERS.map((s, idx) => ({ idx, id: s.id, name: s.name, is3D: s.is3D })),
+        selectShader(idx) { selectShader(idx); renderFrame(); },
+        setSymmetry(v) { curState().symmetry = v; syncUI(); renderFrame(); },
+        setPhase(u) { playing = false; curState().phase = u; syncUI(); renderFrame(u); },
+        setBlend(m) { curState().blendMode = m; syncUI(); renderFrame(); },
+        openControls() { panel.classList.remove("hidden"); syncUI(); },
+        closeControls() { panel.classList.add("hidden"); }
+      };
+    })();
+  </script>
+</body>
+</html>
